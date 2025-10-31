@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}ClasesYa | Panel{% endblock title %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title h4 mb-3">Hola, {{ user.first_name|default:user.username }}!</h2>
+        {% if user.user_type == "STUDENT" %}
+        <p class="card-text">
+          Gracias por confiar en ClasesYa. Tu primera clase con cada profesor es gratis.
+          Explora perfiles de profesores para encontrar la materia que necesitas reforzar.
+        </p>
+        {% if user.student_profile %}
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Asignatura de interes</dt>
+          <dd class="col-sm-8">{{ user.student_profile.preferred_subject|default:"Pendiente" }}</dd>
+          <dt class="col-sm-4">Objetivos</dt>
+          <dd class="col-sm-8">{{ user.student_profile.learning_goals|default:"Cuentanos que deseas aprender" }}</dd>
+        </dl>
+        {% endif %}
+        {% elif user.user_type == "TEACHER" %}
+        <p class="card-text">
+          Bienvenido al equipo docente de ClasesYa. Asegurate de mantener tu perfil completo
+          para atraer a mas estudiantes y recuerda que la primera clase para cada alumno sera gratuita.
+        </p>
+        {% if user.teacher_profile %}
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Asignaturas</dt>
+          <dd class="col-sm-8">{{ user.teacher_profile.subjects }}</dd>
+          <dt class="col-sm-4">Tarifa por hora</dt>
+          <dd class="col-sm-8">${{ user.teacher_profile.hourly_rate }}</dd>
+        </dl>
+        {% endif %}
+        {% else %}
+        <p class="card-text">
+          Tu cuenta esta lista. Actualiza tu perfil desde el panel de administracion.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4 mt-4 mt-lg-0">
+    <div class="card border-0 bg-light">
+      <div class="card-body">
+        <h3 class="h5">Siguientes pasos</h3>
+        <ul class="list-unstyled mb-0">
+          {% if user.user_type == "STUDENT" %}
+          <li>- Explora profesores disponibles en tu materia de interes.</li>
+          <li>- Agenda tu primera clase gratis.</li>
+          <li>- Deja una resena para ayudar a otros alumnos.</li>
+          {% elif user.user_type == "TEACHER" %}
+          <li>- Completa tu biografia y disponibilidad.</li>
+          <li>- Publica materiales previos para tus alumnos.</li>
+          <li>- Revisa las solicitudes de clase nuevas.</li>
+          {% else %}
+          <li>- Personaliza tu perfil en el administrador.</li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

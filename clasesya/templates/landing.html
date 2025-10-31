@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}ClasesYa | Encuentra tu proxima clase{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center text-center">
+  <div class="col-lg-8">
+    <h1 class="display-5 fw-bold mb-4">Aprende y ensena sin complicaciones</h1>
+    <p class="lead mb-4">
+      ClasesYa conecta estudiantes y profesores especializados para crear experiencias
+      de aprendizaje personalizadas. Registrate como alumno para solicitar tu primera clase gratis,
+      o como profesor para ofrecer tus conocimientos en linea.
+    </p>
+    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+      <a class="btn btn-primary btn-lg px-4" href="{% url 'accounts:student_signup' %}">
+        Soy alumno
+      </a>
+      <a class="btn btn-outline-primary btn-lg px-4" href="{% url 'accounts:teacher_signup' %}">
+        Soy profesor
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock content %}
