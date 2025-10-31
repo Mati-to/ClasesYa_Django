@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar sesion | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h3 mb-4 text-center">Inicia sesion</h1>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}
+            <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+          {% if next %}
+          <input type="hidden" name="next" value="{{ next }}" />
+          {% endif %}
+          <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+        <p class="mt-3 text-center mb-0">
+          Aun no tienes cuenta?
+          <a href="{% url 'accounts:student_signup' %}">Registrate como alumno</a>
+          o
+          <a href="{% url 'accounts:teacher_signup' %}">como profesor</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
