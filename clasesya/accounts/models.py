@@ -43,6 +43,12 @@ class StudentProfile(TimeStampedModel):
 
 
 class TeacherProfile(TimeStampedModel):
+    class Availability(models.TextChoices):
+        MORNING = "morning", _("Manana")
+        AFTERNOON = "afternoon", _("Tarde")
+        EVENING = "evening", _("Noche")
+        WEEKEND = "weekend", _("Fin de semana")
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -51,6 +57,13 @@ class TeacherProfile(TimeStampedModel):
     subjects = models.CharField(max_length=150)
     hourly_rate = models.DecimalField(max_digits=6, decimal_places=2)
     bio = models.TextField(blank=True)
+    availability = models.JSONField(default=list, blank=True)
 
     def __str__(self) -> str:
         return f"Profesor: {self.user.get_full_name() or self.user.username}"
+
+    def availability_labels(self) -> list[str]:
+        if not self.availability:
+            return []
+        display_map = dict(self.Availability.choices)
+        return [display_map.get(option, option) for option in self.availability]

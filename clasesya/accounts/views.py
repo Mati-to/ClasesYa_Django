@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, TemplateView
+from django.views.generic import CreateView, DetailView, TemplateView
 
 from .forms import (
     BootstrapAuthenticationForm,
@@ -12,6 +12,7 @@ from .forms import (
     StudentProfileUpdateForm,
     TeacherSignUpForm,
     TeacherProfileUpdateForm,
+    TeacherSearchForm,
     UserAccountUpdateForm,
 )
 from .models import StudentProfile, TeacherProfile
@@ -109,3 +110,83 @@ class ProfileUpdateView(LoginRequiredMixin, TemplateView):
             "is_student": user.is_student(),
             "is_teacher": user.is_teacher(),
         }
+
+
+class TeacherSearchView(LoginRequiredMixin, TemplateView):
+    template_name = "accounts/teacher_search.html"
+    login_url = reverse_lazy("accounts:login")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_student():
+            messages.info(request, "Solo los alumnos pueden buscar profesores.")
+            return redirect("accounts:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = TeacherSearchForm(self.request.GET or None)
+        teachers_queryset = (
+            TeacherProfile.objects.select_related("user")
+            .order_by("user__first_name", "user__last_name")
+        )
+        applied_filters = False
+
+        if form.is_valid():
+            subject = form.cleaned_data.get("subject")
+            availability = form.cleaned_data.get("availability")
+
+            if subject:
+                teachers_queryset = teachers_queryset.filter(subjects__icontains=subject)
+                applied_filters = True
+
+            teachers = list(teachers_queryset)
+
+            if availability:
+                teachers = [
+                    teacher
+                    for teacher in teachers
+                    if all(slot in (teacher.availability or []) for slot in availability)
+                ]
+                applied_filters = True
+        else:
+            form = TeacherSearchForm()
+            teachers = list(teachers_queryset)
+
+        total_results = len(teachers)
+
+        context.update(
+            {
+                "form": form,
+                "teachers": teachers,
+                "applied_filters": applied_filters,
+                "total_results": total_results,
+            }
+        )
+        return context
+
+
+class TeacherProfileDetailView(LoginRequiredMixin, DetailView):
+    model = TeacherProfile
+    template_name = "accounts/teacher_detail.html"
+    context_object_name = "teacher"
+    login_url = reverse_lazy("accounts:login")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_student():
+            messages.info(request, "Solo los alumnos pueden consultar perfiles de profesores.")
+            return redirect("accounts:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        teacher_name = self.object.user.get_full_name() or self.object.user.username
+        messages.success(
+            request,
+            f"Has seleccionado a {teacher_name}. Te enviaremos los siguientes pasos a tu correo.",
+        )
+        return redirect("accounts:teacher_detail", pk=self.object.pk)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["availability_labels"] = self.object.availability_labels()
+        return context

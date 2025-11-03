@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Buscar profesores | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-lg-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h1 class="h4 mb-3">Busca tu profesor ideal</h1>
+        <form method="get" novalidate>
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.subject.id_for_label }}">{{ form.subject.label }}</label>
+            {{ form.subject }}
+            {% for error in form.subject.errors %}
+            <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.availability.id_for_label }}">{{ form.availability.label }}</label>
+            {{ form.availability }}
+            {% if form.availability.help_text %}
+            <div class="form-text">{{ form.availability.help_text }}</div>
+            {% endif %}
+            {% for error in form.availability.errors %}
+            <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-8">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Profesores disponibles</h2>
+      <span class="badge bg-secondary">{{ total_results }}</span>
+    </div>
+    <div class="row row-cols-1 g-3">
+      {% for teacher in teachers %}
+      <div class="col">
+        <div class="card h-100 border-0 shadow-sm">
+          <div class="card-body">
+            <h3 class="h5 mb-1">{{ teacher.user.get_full_name|default:teacher.user.username }}</h3>
+            <p class="text-muted mb-2">{{ teacher.subjects }}</p>
+            <p class="mb-2"><strong>Tarifa:</strong> ${{ teacher.hourly_rate }}</p>
+            {% if teacher.availability %}
+            <div class="mb-3">
+              <span class="fw-semibold d-block mb-1">Disponibilidad:</span>
+              {% for label in teacher.availability_labels %}
+              <span class="badge bg-light text-primary border">{{ label }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if teacher.bio %}
+            <p class="mb-3 small text-muted">{{ teacher.bio|truncatechars:120 }}</p>
+            {% endif %}
+            <div class="d-flex justify-content-end">
+              <a class="btn btn-outline-primary" href="{% url 'accounts:teacher_detail' teacher.pk %}">Seleccionar</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col">
+        <div class="alert alert-info mb-0">
+          {% if applied_filters %}
+          No se encontraron profesores con los filtros seleccionados.
+          {% else %}
+          Aun no hay profesores registrados. Vuelve a intentarlo mas tarde.
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}
