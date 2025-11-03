@@ -48,6 +48,9 @@
               <a class="nav-link" href="{% url 'accounts:home' %}">Mi panel</a>
             </li>
             <li class="nav-item">
+              <a class="nav-link" href="{% url 'accounts:profile_update' %}">Editar perfil</a>
+            </li>
+            <li class="nav-item">
               <form method="post" action="{% url 'accounts:logout' %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="nav-link btn btn-link text-white text-decoration-none p-0">
