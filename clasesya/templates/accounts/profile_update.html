@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Editar perfil | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h1 class="h4 mb-4">Edita tu perfil</h1>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <fieldset class="mb-4">
+            <legend class="h5 mb-3">Datos de tu cuenta</legend>
+            {% for field in user_form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}
+              <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </fieldset>
+
+          {% if profile_form %}
+          <fieldset class="mb-4">
+            <legend class="h5 mb-3">{{ profile_title }}</legend>
+            {% for field in profile_form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}
+              <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </fieldset>
+          {% endif %}
+
+          <div class="d-flex justify-content-end">
+            <a class="btn btn-outline-secondary me-2" href="{% url 'accounts:home' %}">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

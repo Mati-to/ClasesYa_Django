@@ -36,7 +36,7 @@
         {% endif %}
         {% else %}
         <p class="card-text">
-          Tu cuenta esta lista. Actualiza tu perfil desde el panel de administracion.
+          Tu cuenta esta lista. Utiliza la opcion "Editar perfil" para completar tu informacion.
         </p>
         {% endif %}
       </div>
@@ -48,15 +48,16 @@
         <h3 class="h5">Siguientes pasos</h3>
         <ul class="list-unstyled mb-0">
           {% if user.user_type == "STUDENT" %}
+          <li>- Completa y mant?n tu perfil actualizado desde "Editar perfil".</li>
           <li>- Explora profesores disponibles en tu materia de interes.</li>
           <li>- Agenda tu primera clase gratis.</li>
           <li>- Deja una resena para ayudar a otros alumnos.</li>
           {% elif user.user_type == "TEACHER" %}
-          <li>- Completa tu biografia y disponibilidad.</li>
+          <li>- Actualiza tu biografia y tarifas en "Editar perfil".</li>
           <li>- Publica materiales previos para tus alumnos.</li>
           <li>- Revisa las solicitudes de clase nuevas.</li>
           {% else %}
-          <li>- Personaliza tu perfil en el administrador.</li>
+          <li>- Completa tu informacion desde "Editar perfil".</li>
           {% endif %}
         </ul>
       </div>

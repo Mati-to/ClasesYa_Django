@@ -100,3 +100,76 @@ class BootstrapAuthenticationForm(AuthenticationForm):
         label="Contrasena",
         widget=forms.PasswordInput(attrs={"class": "form-control", "placeholder": "Contrasena"}),
     )
+
+
+class UserAccountUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "email")
+        labels = {
+            "first_name": "Nombre",
+            "last_name": "Apellido",
+            "email": "Correo electronico",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_classes = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css_classes} form-control".strip()
+        self.fields["first_name"].widget.attrs.setdefault("placeholder", "Nombre")
+        self.fields["last_name"].widget.attrs.setdefault("placeholder", "Apellido")
+        self.fields["email"].widget.attrs.setdefault("placeholder", "correo@ejemplo.com")
+
+
+class StudentProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = StudentProfile
+        fields = ("preferred_subject", "learning_goals")
+        labels = {
+            "preferred_subject": "Asignatura de interes",
+            "learning_goals": "Objetivos de aprendizaje",
+        }
+        widgets = {
+            "learning_goals": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_classes = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css_classes} form-control".strip()
+        self.fields["preferred_subject"].widget.attrs.setdefault("placeholder", "Materia principal")
+        self.fields["learning_goals"].widget.attrs.setdefault(
+            "placeholder",
+            "Cuentanos que deseas alcanzar",
+        )
+
+
+class TeacherProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = TeacherProfile
+        fields = ("subjects", "hourly_rate", "bio")
+        labels = {
+            "subjects": "Asignaturas",
+            "hourly_rate": "Tarifa por hora (USD)",
+            "bio": "Biografia",
+        }
+        widgets = {
+            "bio": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css_classes = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{css_classes} form-control".strip()
+        self.fields["subjects"].widget.attrs.setdefault(
+            "placeholder",
+            "Ej: Algebra, Fisica, Programacion",
+        )
+        self.fields["hourly_rate"].widget.attrs.setdefault("min", "0")
+        self.fields["bio"].widget.attrs.setdefault(
+            "placeholder",
+            "Describe tu experiencia docente",
+        )
