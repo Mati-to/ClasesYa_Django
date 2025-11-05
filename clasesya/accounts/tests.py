@@ -110,3 +110,89 @@ class ProfileUpdateViewTests(TestCase):
         self.assertEqual(teacher_profile.subjects, "Fisica, Matematicas")
         self.assertEqual(teacher_profile.hourly_rate, Decimal("30.50"))
         self.assertEqual(teacher_profile.bio, "Amante de la experimentacion")
+
+
+class TeacherSearchViewTests(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+
+        self.student = self.user_model.objects.create_user(
+            username="alumna",
+            password="pass1234",
+            first_name="Ana",
+            last_name="Perez",
+            email="ana@student.com",
+        )
+        self.student.user_type = self.student.UserType.STUDENT
+        self.student.save()
+
+        self.teacher_user = self.user_model.objects.create_user(
+            username="profe1",
+            password="pass1234",
+            first_name="Luis",
+            last_name="Gomez",
+            email="luis@teacher.com",
+        )
+        self.teacher_user.user_type = self.teacher_user.UserType.TEACHER
+        self.teacher_user.save()
+
+        self.teacher_profile = TeacherProfile.objects.create(
+            user=self.teacher_user,
+            subjects="Fisica avanzada",
+            hourly_rate=Decimal("40.00"),
+            bio="Apasionado por la ciencia",
+            availability=[
+                TeacherProfile.Availability.MORNING,
+                TeacherProfile.Availability.WEEKEND,
+            ],
+        )
+
+        other_teacher_user = self.user_model.objects.create_user(
+            username="profe2",
+            password="pass1234",
+            first_name="Maria",
+            last_name="Lopez",
+            email="maria@teacher.com",
+        )
+        other_teacher_user.user_type = other_teacher_user.UserType.TEACHER
+        other_teacher_user.save()
+
+        TeacherProfile.objects.create(
+            user=other_teacher_user,
+            subjects="Historia del arte",
+            hourly_rate=Decimal("35.00"),
+            bio="Especialista en arte renacentista",
+            availability=[TeacherProfile.Availability.AFTERNOON],
+        )
+
+    def test_requires_student_role(self):
+        self.client.login(username="profe1", password="pass1234")
+
+        response = self.client.get(reverse("accounts:teacher_search"))
+
+        self.assertRedirects(response, reverse("accounts:home"))
+
+    def test_student_can_filter_by_subject_and_availability(self):
+        self.client.login(username="alumna", password="pass1234")
+
+        response = self.client.get(
+            reverse("accounts:teacher_search"),
+            {"subject": "fisica", "availability": [TeacherProfile.Availability.MORNING]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fisica avanzada")
+        self.assertNotContains(response, "Historia del arte")
+
+    def test_student_can_view_and_select_teacher(self):
+        self.client.login(username="alumna", password="pass1234")
+
+        detail_url = reverse("accounts:teacher_detail", args=[self.teacher_profile.pk])
+
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Fisica avanzada")
+
+        post_response = self.client.post(detail_url, follow=True)
+        self.assertRedirects(post_response, detail_url)
+        self.assertContains(post_response, "Has seleccionado a Luis Gomez")

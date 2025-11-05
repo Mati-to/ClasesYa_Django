@@ -76,6 +76,17 @@ class TeacherSignUpForm(BaseSignUpForm):
         widget=forms.Textarea(attrs={"rows": 3}),
         required=False,
     )
+    availability = forms.MultipleChoiceField(
+        choices=TeacherProfile.Availability.choices,
+        label="Disponibilidad",
+        required=False,
+        help_text="Selecciona los momentos en los que puedes dictar clases",
+        widget=forms.SelectMultiple(attrs={"class": "form-select"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["availability"].widget.attrs["class"] = "form-select"
 
     def save(self, commit: bool = True):
         user = super().save(commit=False)
@@ -87,6 +98,7 @@ class TeacherSignUpForm(BaseSignUpForm):
                 subjects=self.cleaned_data.get("subjects", ""),
                 hourly_rate=self.cleaned_data.get("hourly_rate"),
                 bio=self.cleaned_data.get("bio", ""),
+                availability=self.cleaned_data.get("availability", []),
             )
         return user
 
@@ -147,13 +159,22 @@ class StudentProfileUpdateForm(forms.ModelForm):
 
 
 class TeacherProfileUpdateForm(forms.ModelForm):
+    availability = forms.MultipleChoiceField(
+        choices=TeacherProfile.Availability.choices,
+        label="Disponibilidad",
+        required=False,
+        widget=forms.SelectMultiple(attrs={"class": "form-select"}),
+        help_text="Indica cuando estas disponible para recibir nuevos alumnos",
+    )
+
     class Meta:
         model = TeacherProfile
-        fields = ("subjects", "hourly_rate", "bio")
+        fields = ("subjects", "hourly_rate", "bio", "availability")
         labels = {
             "subjects": "Asignaturas",
             "hourly_rate": "Tarifa por hora (USD)",
             "bio": "Biografia",
+            "availability": "Disponibilidad",
         }
         widgets = {
             "bio": forms.Textarea(attrs={"rows": 3}),
@@ -161,9 +182,12 @@ class TeacherProfileUpdateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        for name, field in self.fields.items():
             css_classes = field.widget.attrs.get("class", "")
-            field.widget.attrs["class"] = f"{css_classes} form-control".strip()
+            if name == "availability":
+                field.widget.attrs["class"] = f"{css_classes} form-select".strip()
+            else:
+                field.widget.attrs["class"] = f"{css_classes} form-control".strip()
         self.fields["subjects"].widget.attrs.setdefault(
             "placeholder",
             "Ej: Algebra, Fisica, Programacion",
@@ -173,3 +197,36 @@ class TeacherProfileUpdateForm(forms.ModelForm):
             "placeholder",
             "Describe tu experiencia docente",
         )
+        if self.instance and self.instance.pk:
+            self.fields["availability"].initial = self.instance.availability
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        profile.availability = self.cleaned_data.get("availability", [])
+        if commit:
+            profile.save()
+        return profile
+
+
+class TeacherSearchForm(forms.Form):
+    subject = forms.CharField(
+        label="Area de interes",
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "placeholder": "Ej: Algebra, Programacion",
+            }
+        ),
+    )
+    availability = forms.MultipleChoiceField(
+        choices=TeacherProfile.Availability.choices,
+        label="Disponibilidad",
+        required=False,
+        widget=forms.SelectMultiple(),
+        help_text="Puedes seleccionar uno o varios horarios",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["subject"].widget.attrs["class"] = "form-control"
+        self.fields["availability"].widget.attrs["class"] = "form-select"

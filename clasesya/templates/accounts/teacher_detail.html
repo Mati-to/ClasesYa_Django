@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Perfil docente | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="mb-4">
+  <a class="text-decoration-none" href="{% url 'accounts:teacher_search' %}">
+    &larr; Volver a la busqueda de profesores
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h3 mb-3">{{ teacher.user.get_full_name|default:teacher.user.username }}</h1>
+    <p class="mb-2"><strong>Asignaturas:</strong> {{ teacher.subjects }}</p>
+    <p class="mb-2"><strong>Tarifa por hora:</strong> ${{ teacher.hourly_rate }}</p>
+    {% if availability_labels %}
+    <div class="mb-3">
+      <span class="d-block fw-semibold mb-1">Disponibilidad</span>
+      {% for label in availability_labels %}
+      <span class="badge bg-light text-primary border">{{ label }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if teacher.bio %}
+    <div class="mb-4">
+      <h2 class="h5">Sobre el profesor</h2>
+      <p class="mb-0">{{ teacher.bio }}</p>
+    </div>
+    {% endif %}
+
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">Seleccionar profesor</button>
+    </form>
+  </div>
+</div>
+{% endblock content %}

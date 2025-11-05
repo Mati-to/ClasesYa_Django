@@ -13,6 +13,9 @@
           Gracias por confiar en ClasesYa. Tu primera clase con cada profesor es gratis.
           Explora perfiles de profesores para encontrar la materia que necesitas reforzar.
         </p>
+        <div class="mb-3">
+          <a class="btn btn-primary" href="{% url 'accounts:teacher_search' %}">Buscar profesores disponibles</a>
+        </div>
         {% if user.student_profile %}
         <dl class="row mb-0">
           <dt class="col-sm-4">Asignatura de interes</dt>

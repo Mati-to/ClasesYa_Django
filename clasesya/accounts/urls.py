@@ -8,6 +8,8 @@ from .views import (
     ProfileUpdateView,
     StudentSignUpView,
     TeacherSignUpView,
+    TeacherSearchView,
+    TeacherProfileDetailView,
 )
 
 
@@ -20,6 +22,8 @@ urlpatterns = [
     path("login/", CustomLoginView.as_view(), name="login"),
     path("logout/", CustomLogoutView.as_view(), name="logout"),
     path("perfil/", ProfileUpdateView.as_view(), name="profile_update"),
+    path("profesores/", TeacherSearchView.as_view(), name="teacher_search"),
+    path("profesores/<int:pk>/", TeacherProfileDetailView.as_view(), name="teacher_detail"),
     path("registro/alumno/", StudentSignUpView.as_view(), name="student_signup"),
     path("registro/profesor/", TeacherSignUpView.as_view(), name="teacher_signup"),
 ]

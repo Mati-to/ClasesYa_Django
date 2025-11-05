@@ -44,6 +44,11 @@
                 Hola, {{ user.first_name|default:user.username }}
               </span>
             </li>
+            {% if user.is_student %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'accounts:teacher_search' %}">Buscar profesores</a>
+            </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'accounts:home' %}">Mi panel</a>
             </li>
