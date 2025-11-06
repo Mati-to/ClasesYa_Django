@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block title %}Programar clase en linea | ClasesYa{% endblock title %}
 
@@ -56,18 +57,11 @@
               <div class="text-danger small">{{ error }}</div>
               {% endfor %}
             </div>
-            <div class="col-12 col-sm-6">
-              <label class="form-label" for="{{ form.start_time.id_for_label }}">{{ form.start_time.label }}</label>
-              {{ form.start_time }}
-              <div class="form-text">Selecciona la fecha y hora de inicio en tu zona horaria.</div>
-              {% for error in form.start_time.errors %}
-              <div class="text-danger small">{{ error }}</div>
-              {% endfor %}
-            </div>
-            <div class="col-12 col-sm-6">
-              <label class="form-label" for="{{ form.end_time.id_for_label }}">{{ form.end_time.label }}</label>
-              {{ form.end_time }}
-              {% for error in form.end_time.errors %}
+            <div class="col-12">
+              <label class="form-label" for="{{ form.slot.id_for_label }}">{{ form.slot.label }}</label>
+              {{ form.slot }}
+              <div class="form-text">Las clases duran 1 hora. Los horarios disponibles se muestran en tu zona horaria.</div>
+              {% for error in form.slot.errors %}
               <div class="text-danger small">{{ error }}</div>
               {% endfor %}
             </div>
@@ -78,6 +72,25 @@
             <button type="submit" class="btn btn-primary">Crear clase en linea</button>
           </div>
         </form>
+        <div class="mt-4">
+          <h2 class="h6 mb-3">Proximos horarios disponibles</h2>
+          {% if available_slots %}
+          <ul class="list-group">
+            {% for slot in available_slots %}
+            {% with start_local=slot.start_time|localtime end_local=slot.end_time|localtime %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>
+                {{ start_local|date:"d/m/Y H:i" }}
+              </span>
+              <span class="text-muted small">{{ end_local|date:"H:i" }}</span>
+            </li>
+            {% endwith %}
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted mb-0">El profesor no tiene horarios disponibles proximamente.</p>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>

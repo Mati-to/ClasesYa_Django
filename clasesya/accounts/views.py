@@ -195,7 +195,10 @@ class TeacherProfileDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        available_slots = self.object.upcoming_available_slots()
         context["availability_labels"] = self.object.availability_labels()
+        context["available_slots"] = available_slots[:10]
+        context["has_more_slots"] = available_slots.count() > 10
         return context
 
 
@@ -213,6 +216,12 @@ class ClassSessionCreateView(LoginRequiredMixin, FormView):
         )
         self.student_profile, _ = StudentProfile.objects.get_or_create(user=request.user)
         self._form_error_reported = False
+        if request.method == "GET" and not self._teacher_has_available_slots():
+            messages.info(
+                request,
+                "El profesor no tiene horarios disponibles para nuevas clases en este momento.",
+            )
+            return redirect("accounts:teacher_detail", pk=self.teacher_profile.pk)
         return super().dispatch(request, *args, **kwargs)
 
     def get_form_kwargs(self):
@@ -226,6 +235,7 @@ class ClassSessionCreateView(LoginRequiredMixin, FormView):
         context.update(
             {
                 "teacher": self.teacher_profile,
+                "available_slots": self.teacher_profile.upcoming_available_slots(),
             }
         )
         return context
@@ -254,6 +264,9 @@ class ClassSessionCreateView(LoginRequiredMixin, FormView):
         if not getattr(self, "_form_error_reported", False):
             messages.error(self.request, "Revisa la informacion ingresada. No se pudo programar la sesion.")
         return super().form_invalid(form)
+
+    def _teacher_has_available_slots(self) -> bool:
+        return self.teacher_profile.upcoming_available_slots().exists()
 
 
 class ClassSessionListView(LoginRequiredMixin, TemplateView):

@@ -2,7 +2,13 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils.html import format_html
 
-from .models import ClassSession, StudentProfile, TeacherProfile, User
+from .models import (
+    ClassSession,
+    StudentProfile,
+    TeacherAvailabilitySlot,
+    TeacherProfile,
+    User,
+)
 
 
 @admin.register(User)
@@ -82,3 +88,22 @@ class ClassSessionAdmin(admin.ModelAdmin):
         return obj.virtual_room_url
 
     virtual_room_preview.short_description = "Enlace de la sala"
+
+
+@admin.register(TeacherAvailabilitySlot)
+class TeacherAvailabilitySlotAdmin(admin.ModelAdmin):
+    list_display = ("teacher", "start_time", "is_active", "is_slot_available")
+    list_filter = ("is_active",)
+    search_fields = (
+        "teacher__user__first_name",
+        "teacher__user__last_name",
+        "teacher__user__username",
+    )
+    autocomplete_fields = ("teacher",)
+    ordering = ("start_time",)
+
+    def is_slot_available(self, obj):
+        return obj.is_available()
+
+    is_slot_available.boolean = True
+    is_slot_available.short_description = "Disponible"

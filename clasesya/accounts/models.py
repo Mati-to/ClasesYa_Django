@@ -73,6 +73,53 @@ class TeacherProfile(TimeStampedModel):
         display_map = dict(self.Availability.choices)
         return [display_map.get(option, option) for option in self.availability]
 
+    def upcoming_available_slots(self):
+        now = timezone.now()
+        return (
+            self.availability_slots.filter(is_active=True, start_time__gte=now)
+            .exclude(class_sessions__status=ClassSession.Status.SCHEDULED)
+            .order_by("start_time")
+            .distinct()
+        )
+
+
+class TeacherAvailabilitySlot(TimeStampedModel):
+    teacher = models.ForeignKey(
+        TeacherProfile,
+        on_delete=models.CASCADE,
+        related_name="availability_slots",
+    )
+    start_time = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("start_time",)
+        verbose_name = _("Horario disponible")
+        verbose_name_plural = _("Horarios disponibles")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("teacher", "start_time"),
+                name="unique_teacher_slot_start_time",
+            )
+        ]
+
+    def __str__(self) -> str:
+        local_start = timezone.localtime(self.start_time)
+        formatted = local_start.strftime("%d/%m/%Y %H:%M")
+        return f"{self.teacher} - {formatted}"
+
+    @property
+    def end_time(self):
+        return self.start_time + timedelta(hours=1)
+
+    def is_future(self) -> bool:
+        return self.start_time >= timezone.now()
+
+    def is_available(self) -> bool:
+        if not self.is_active or not self.is_future():
+            return False
+        return not self.class_sessions.filter(status=ClassSession.Status.SCHEDULED).exists()
+
 
 class ClassSession(TimeStampedModel):
     class Status(models.TextChoices):
@@ -100,6 +147,13 @@ class ClassSession(TimeStampedModel):
         default=Status.SCHEDULED,
     )
     virtual_room_code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    slot = models.ForeignKey(
+        "TeacherAvailabilitySlot",
+        on_delete=models.PROTECT,
+        related_name="class_sessions",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ("-start_time",)
@@ -109,7 +163,12 @@ class ClassSession(TimeStampedModel):
             models.UniqueConstraint(
                 fields=("teacher", "student", "start_time", "end_time"),
                 name="unique_session_teacher_student_time",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=("slot",),
+                condition=models.Q(status="scheduled"),
+                name="unique_scheduled_slot",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -128,6 +187,35 @@ class ClassSession(TimeStampedModel):
 
         if self.start_time < timezone.now() - timedelta(minutes=1):
             raise ValidationError({"start_time": _("La hora de inicio debe ser en el futuro.")})
+
+        expected_duration = timedelta(hours=1)
+        if self.end_time - self.start_time != expected_duration:
+            raise ValidationError({"end_time": _("Las clases deben durar exactamente 1 hora.")})
+
+        if self.slot_id:
+            if self.slot.teacher_id != self.teacher_id:
+                raise ValidationError({"slot": _("El horario seleccionado no pertenece a este profesor.")})
+
+            if not self.slot.is_active:
+                raise ValidationError({"slot": _("El horario seleccionado no se encuentra disponible.")})
+
+            if self.slot.start_time != self.start_time:
+                raise ValidationError(
+                    {
+                        "slot": _(
+                            "El horario seleccionado no coincide con la hora de inicio de la clase."
+                        )
+                    }
+                )
+
+            slot_conflict_qs = ClassSession.objects.filter(
+                slot=self.slot,
+                status=self.Status.SCHEDULED,
+            )
+            if self.pk:
+                slot_conflict_qs = slot_conflict_qs.exclude(pk=self.pk)
+            if slot_conflict_qs.exists():
+                raise ValidationError({"slot": _("El horario seleccionado ya fue reservado por otro alumno.")})
 
         overlapping_filter = models.Q(status=self.Status.SCHEDULED)
         overlapping_filter &= (
