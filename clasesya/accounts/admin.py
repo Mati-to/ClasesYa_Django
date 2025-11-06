@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.utils.html import format_html
 
-from .models import StudentProfile, TeacherProfile, User
+from .models import ClassSession, StudentProfile, TeacherProfile, User
 
 
 @admin.register(User)
@@ -43,3 +44,41 @@ class TeacherProfileAdmin(admin.ModelAdmin):
         "user__last_name",
         "subjects",
     )
+
+
+@admin.register(ClassSession)
+class ClassSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        "topic",
+        "teacher",
+        "student",
+        "start_time",
+        "end_time",
+        "status",
+        "virtual_room_link",
+    )
+    autocomplete_fields = ("teacher", "student")
+    search_fields = (
+        "topic",
+        "teacher__user__first_name",
+        "teacher__user__last_name",
+        "student__user__first_name",
+        "student__user__last_name",
+    )
+    list_filter = ("status", "start_time")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "virtual_room_code",
+        "virtual_room_preview",
+    )
+
+    def virtual_room_link(self, obj):
+        return format_html('<a href="{}" target="_blank">Abrir sala</a>', obj.virtual_room_url)
+
+    virtual_room_link.short_description = "Sala virtual"
+
+    def virtual_room_preview(self, obj):
+        return obj.virtual_room_url
+
+    virtual_room_preview.short_description = "Enlace de la sala"

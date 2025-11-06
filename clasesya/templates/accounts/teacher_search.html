@@ -64,9 +64,10 @@
             {% if teacher.bio %}
             <p class="mb-3 small text-muted">{{ teacher.bio|truncatechars:120 }}</p>
             {% endif %}
-            <div class="d-flex justify-content-end">
-              <a class="btn btn-outline-primary" href="{% url 'accounts:teacher_detail' teacher.pk %}">Seleccionar</a>
-            </div>
+              <div class="d-flex justify-content-end gap-2">
+                <a class="btn btn-outline-secondary" href="{% url 'accounts:teacher_detail' teacher.pk %}">Ver perfil</a>
+                <a class="btn btn-primary" href="{% url 'accounts:session_create' teacher_pk=teacher.pk %}">Agendar clase</a>
+              </div>
           </div>
         </div>
       </div>

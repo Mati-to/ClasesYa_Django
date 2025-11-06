@@ -1,10 +1,15 @@
+from urllib.parse import urlparse
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
-from django.shortcuts import redirect
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, DetailView, TemplateView
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.views.generic import CreateView, DetailView, FormView, TemplateView
 
 from .forms import (
     BootstrapAuthenticationForm,
@@ -14,8 +19,10 @@ from .forms import (
     TeacherProfileUpdateForm,
     TeacherSearchForm,
     UserAccountUpdateForm,
+    ClassSessionScheduleForm,
+    ClassSessionStatusForm,
 )
-from .models import StudentProfile, TeacherProfile
+from .models import ClassSession, StudentProfile, TeacherProfile
 
 
 class LandingPageView(TemplateView):
@@ -189,4 +196,189 @@ class TeacherProfileDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["availability_labels"] = self.object.availability_labels()
+        return context
+
+
+class ClassSessionCreateView(LoginRequiredMixin, FormView):
+    template_name = "accounts/class_session_form.html"
+    form_class = ClassSessionScheduleForm
+    login_url = reverse_lazy("accounts:login")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_student():
+            messages.info(request, "Solo los alumnos pueden programar sesiones en linea.")
+            return redirect("accounts:home")
+        self.teacher_profile = get_object_or_404(
+            TeacherProfile.objects.select_related("user"), pk=kwargs["teacher_pk"]
+        )
+        self.student_profile, _ = StudentProfile.objects.get_or_create(user=request.user)
+        self._form_error_reported = False
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["teacher"] = self.teacher_profile
+        kwargs["student"] = self.student_profile
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "teacher": self.teacher_profile,
+            }
+        )
+        return context
+
+    def form_valid(self, form):
+        try:
+            session = form.save()
+        except ValidationError as exc:
+            for field, errors in exc.message_dict.items():
+                target_field = field if field in form.fields else None
+                for error in errors:
+                    form.add_error(target_field, error)
+            messages.error(
+                self.request,
+                "No pudimos programar la sesion por conflictos con la agenda. Revisa los horarios seleccionados.",
+            )
+            self._form_error_reported = True
+            return self.form_invalid(form)
+        messages.success(
+            self.request,
+            "Tu clase se programo correctamente. Puedes acceder a los detalles desde tus sesiones.",
+        )
+        return redirect("accounts:session_detail", pk=session.pk)
+
+    def form_invalid(self, form):
+        if not getattr(self, "_form_error_reported", False):
+            messages.error(self.request, "Revisa la informacion ingresada. No se pudo programar la sesion.")
+        return super().form_invalid(form)
+
+
+class ClassSessionListView(LoginRequiredMixin, TemplateView):
+    template_name = "accounts/class_session_list.html"
+    login_url = reverse_lazy("accounts:login")
+
+    def get_queryset(self):
+        user = self.request.user
+        base_qs = ClassSession.objects.select_related("teacher__user", "student__user")
+        if user.is_student():
+            return base_qs.filter(student__user=user)
+        if user.is_teacher():
+            return base_qs.filter(teacher__user=user)
+        return base_qs.none()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        now = timezone.now()
+        sessions_qs = self.get_queryset()
+        upcoming_sessions = sessions_qs.filter(
+            status=ClassSession.Status.SCHEDULED,
+            start_time__gte=now,
+        ).order_by("start_time")
+        past_sessions = sessions_qs.exclude(
+            Q(status=ClassSession.Status.SCHEDULED) & Q(start_time__gte=now)
+        ).order_by("-start_time")
+        context.update(
+            {
+                "upcoming_sessions": upcoming_sessions,
+                "past_sessions": past_sessions,
+                "is_student": self.request.user.is_student(),
+                "is_teacher": self.request.user.is_teacher(),
+            }
+        )
+        return context
+
+
+class ClassSessionDetailView(LoginRequiredMixin, DetailView):
+    model = ClassSession
+    template_name = "accounts/class_session_detail.html"
+    context_object_name = "session"
+    login_url = reverse_lazy("accounts:login")
+
+    def get_queryset(self):
+        base_qs = super().get_queryset().select_related("teacher__user", "student__user")
+        user = self.request.user
+        if user.is_student():
+            return base_qs.filter(student__user=user)
+        if user.is_teacher():
+            return base_qs.filter(teacher__user=user)
+        return base_qs.none()
+
+    def _user_can_manage_status(self) -> bool:
+        return self.request.user.is_teacher() and self.object.teacher.user_id == self.request.user.id
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not self._user_can_manage_status():
+            messages.error(request, "No tienes permisos para modificar esta sesion.")
+            return redirect("accounts:session_detail", pk=self.object.pk)
+
+        form = ClassSessionStatusForm(data=request.POST, instance=self.object)
+        if form.is_valid():
+            updated_session = form.save()
+            status_label = updated_session.get_status_display()
+            messages.success(request, f"El estado de la sesion se actualizo a '{status_label}'.")
+            return redirect("accounts:session_detail", pk=updated_session.pk)
+
+        context = self.get_context_data(status_form=form)
+        return self.render_to_response(context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        session = self.object
+        can_manage_status = self.request.user.is_teacher() and session.teacher.user_id == self.request.user.id
+        status_form = kwargs.get("status_form")
+        if status_form is None and can_manage_status:
+            status_form = ClassSessionStatusForm(instance=session)
+        context.update(
+            {
+                "status_form": status_form,
+                "can_manage_status": can_manage_status,
+                "can_join_room": session.status == ClassSession.Status.SCHEDULED,
+                "start_time_local": timezone.localtime(session.start_time),
+                "end_time_local": timezone.localtime(session.end_time),
+            }
+        )
+        return context
+
+
+class ClassSessionRoomView(LoginRequiredMixin, DetailView):
+    model = ClassSession
+    template_name = "accounts/class_session_room.html"
+    context_object_name = "session"
+    login_url = reverse_lazy("accounts:login")
+
+    def get_queryset(self):
+        base_qs = super().get_queryset().select_related("teacher__user", "student__user")
+        user = self.request.user
+        if user.is_student():
+            return base_qs.filter(student__user=user)
+        if user.is_teacher():
+            return base_qs.filter(teacher__user=user)
+        return base_qs.none()
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        session = self.object
+        if session.status == ClassSession.Status.CANCELLED:
+            messages.error(request, "Esta sesion fue cancelada. No es posible acceder a la sala virtual.")
+            return redirect("accounts:session_detail", pk=session.pk)
+        return response
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        session = self.object
+        parsed_url = urlparse(session.virtual_room_url)
+        room_name = parsed_url.path.strip("/")
+        context.update(
+            {
+                "room_domain": parsed_url.netloc,
+                "room_name": room_name,
+                "start_time_local": timezone.localtime(session.start_time),
+                "end_time_local": timezone.localtime(session.end_time),
+                "is_in_future": session.start_time > timezone.now(),
+            }
+        )
         return context

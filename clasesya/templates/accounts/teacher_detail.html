@@ -22,17 +22,25 @@
       {% endfor %}
     </div>
     {% endif %}
-    {% if teacher.bio %}
-    <div class="mb-4">
-      <h2 class="h5">Sobre el profesor</h2>
-      <p class="mb-0">{{ teacher.bio }}</p>
-    </div>
-    {% endif %}
+      {% if teacher.bio %}
+      <div class="mb-4">
+        <h2 class="h5">Sobre el profesor</h2>
+        <p class="mb-0">{{ teacher.bio }}</p>
+      </div>
+      {% endif %}
 
-    <form method="post" class="d-inline">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-primary">Seleccionar profesor</button>
-    </form>
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <form method="post" class="d-inline mb-0">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">Seleccionar profesor</button>
+        </form>
+        <a
+          class="btn btn-outline-primary"
+          href="{% url 'accounts:session_create' teacher_pk=teacher.pk %}"
+        >
+          Programar clase en linea
+        </a>
+      </div>
   </div>
 </div>
 {% endblock content %}

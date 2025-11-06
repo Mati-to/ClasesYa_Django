@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block title %}Detalle de sesion | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-9">
+    <div class="mb-4">
+      <a class="text-decoration-none" href="{% url 'accounts:session_list' %}">&larr; Volver a mis sesiones</a>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+          <div>
+            <h1 class="h4 mb-1">{{ session.topic }}</h1>
+            <p class="text-muted mb-0">Creada el {{ session.created_at|localtime|date:"d/m/Y H:i" }}</p>
+          </div>
+          <span class="badge {% if session.status == 'scheduled' %}bg-success{% elif session.status == 'completed' %}bg-secondary{% else %}bg-danger{% endif %}">
+            {{ session.get_status_display }}
+          </span>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-6">
+            <div class="border rounded p-3 h-100">
+              <h2 class="h6">Horario</h2>
+              <p class="mb-1">
+                <strong>Inicio:</strong> {{ start_time_local|date:"d/m/Y H:i" }}
+              </p>
+              <p class="mb-0">
+                <strong>Fin:</strong> {{ end_time_local|date:"d/m/Y H:i" }}
+              </p>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="border rounded p-3 h-100">
+              <h2 class="h6">Participantes</h2>
+              <p class="mb-1"><strong>Profesor:</strong> {{ session.teacher.user.get_full_name|default:session.teacher.user.username }}</p>
+              <p class="mb-0"><strong>Alumno:</strong> {{ session.student.user.get_full_name|default:session.student.user.username }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <h2 class="h6">Notas de la sesion</h2>
+          <p class="mb-0">{{ session.description|default:"Sin notas adicionales." }}</p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+          <div>
+            <p class="mb-1"><strong>Enlace directo:</strong> <a href="{{ session.virtual_room_url }}" target="_blank" rel="noopener">{{ session.virtual_room_url }}</a></p>
+            <small class="text-muted">Usaremos Jitsi Meet para la videollamada. Puedes compartir este enlace unicamente con los participantes.</small>
+          </div>
+          {% if can_join_room %}
+          <a class="btn btn-primary" href="{% url 'accounts:session_room' session.pk %}">Ir a la sala virtual</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if can_manage_status %}
+    <div class="card shadow-sm mt-4">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Actualizar estado</h2>
+        <form method="post">
+          {% csrf_token %}
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="{{ status_form.status.id_for_label }}">{{ status_form.status.label }}</label>
+              {{ status_form.status }}
+            </div>
+            <div class="col-12 col-md-6 d-flex justify-content-end">
+              <button type="submit" class="btn btn-outline-primary">Guardar cambios</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}
