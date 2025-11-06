@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block title %}Sala virtual | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+    <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h1 class="h4 mb-1">Sala virtual</h1>
+        <p class="text-muted mb-0">
+          {{ session.topic }} &bull; {{ start_time_local|date:"d/m/Y H:i" }} - {{ end_time_local|date:"H:i" }}
+        </p>
+      </div>
+      <a class="btn btn-outline-secondary" href="{% url 'accounts:session_detail' session.pk %}">Volver al detalle</a>
+    </div>
+
+    {% if is_in_future %}
+    <div class="alert alert-info">
+      La clase aun no inicia. Puedes preparar la sala con anticipacion o volver cuando falten unos minutos.
+    </div>
+    {% endif %}
+
+    <div class="ratio ratio-16x9 bg-black rounded overflow-hidden" id="virtual-room"></div>
+
+    <div class="mt-3">
+      <p class="mb-1"><strong>Enlace directo:</strong> <a href="{{ session.virtual_room_url }}" target="_blank" rel="noopener">{{ session.virtual_room_url }}</a></p>
+      <small class="text-muted">Comparte este enlace solo con los participantes autorizados. La sala se genera con tecnologia Jitsi Meet.</small>
+    </div>
+  </div>
+</div>
+
+<noscript>
+  <div class="alert alert-warning mt-4">
+    Necesitas habilitar JavaScript para cargar la sala virtual integrada. De lo contrario, puedes abrir el enlace directo en otra pestana.
+  </div>
+</noscript>
+
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+  (function () {
+    const container = document.getElementById("virtual-room");
+    if (!container) {
+      return;
+    }
+    try {
+      const domain = "{{ room_domain }}";
+      const options = {
+        roomName: "{{ room_name }}",
+        parentNode: container,
+        userInfo: {
+          displayName: "{{ request.user.get_full_name|default:request.user.username }}",
+        },
+        configOverwrite: {
+          prejoinPageEnabled: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+        },
+      };
+      new JitsiMeetExternalAPI(domain, options);
+    } catch (error) {
+      console.error("Error inicializando la sala virtual", error);
+      const fallback = document.createElement("div");
+      fallback.className = "alert alert-danger mt-3";
+      fallback.innerHTML = "No se pudo cargar la sala integrada. Abre el enlace directo en otra pestaña.";
+      container.replaceWith(fallback);
+    }
+  })();
+</script>
+{% endblock content %}

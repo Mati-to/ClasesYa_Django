@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
-from .models import StudentProfile, TeacherProfile, User
+from django.utils import timezone
+
+from .models import ClassSession, StudentProfile, TeacherProfile, User
 
 
 class BaseSignUpForm(UserCreationForm):
@@ -230,3 +232,73 @@ class TeacherSearchForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["subject"].widget.attrs["class"] = "form-control"
         self.fields["availability"].widget.attrs["class"] = "form-select"
+
+
+class ClassSessionScheduleForm(forms.ModelForm):
+    start_time = forms.DateTimeField(
+        label="Inicio de la clase",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
+    )
+    end_time = forms.DateTimeField(
+        label="Fin de la clase",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
+    )
+
+    def __init__(self, teacher, student, *args, **kwargs):
+        self.teacher = teacher
+        self.student = student
+        super().__init__(*args, **kwargs)
+        now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+        min_value = now_local.strftime("%Y-%m-%dT%H:%M")
+        self.fields["start_time"].widget.attrs.setdefault("min", min_value)
+        self.fields["end_time"].widget.attrs.setdefault("min", min_value)
+        for name, field in self.fields.items():
+            if name not in {"start_time", "end_time"}:
+                css_classes = field.widget.attrs.get("class", "")
+                field.widget.attrs["class"] = f"{css_classes} form-control".strip()
+
+    class Meta:
+        model = ClassSession
+        fields = ("topic", "description", "start_time", "end_time")
+        labels = {
+            "topic": "Tema",
+            "description": "Notas adicionales",
+        }
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Objetivo de la clase"}),
+            "topic": forms.TextInput(attrs={"placeholder": "Ej: Algebra - Fracciones"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_time = cleaned_data.get("start_time")
+        end_time = cleaned_data.get("end_time")
+        current_timezone = timezone.get_current_timezone()
+
+        if start_time and timezone.is_naive(start_time):
+            start_time = timezone.make_aware(start_time, current_timezone)
+            cleaned_data["start_time"] = start_time
+
+        if end_time and timezone.is_naive(end_time):
+            end_time = timezone.make_aware(end_time, current_timezone)
+            cleaned_data["end_time"] = end_time
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        session = super().save(commit=False)
+        session.teacher = self.teacher
+        session.student = self.student
+        if commit:
+            session.save()
+        return session
+
+
+class ClassSessionStatusForm(forms.ModelForm):
+    class Meta:
+        model = ClassSession
+        fields = ("status",)
+        labels = {"status": "Estado"}
+        widgets = {
+            "status": forms.Select(attrs={"class": "form-select"}),
+        }

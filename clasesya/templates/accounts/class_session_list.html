@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block title %}Mis sesiones en linea | ClasesYa{% endblock title %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0">Mis sesiones en linea</h1>
+    <p class="text-muted mb-0">Gestiona y accede a tus clases virtuales programadas.</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if is_student %}
+    <a class="btn btn-outline-secondary" href="{% url 'accounts:teacher_search' %}">Buscar profesores</a>
+    {% endif %}
+    <a class="btn btn-primary" href="{% url 'accounts:session_list' %}">Actualizar lista</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-12 col-lg-7">
+    <h2 class="h5 mb-3">Sesiones proximas</h2>
+    {% if upcoming_sessions %}
+    <div class="vstack gap-3">
+      {% for session in upcoming_sessions %}
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+            <div>
+              <h3 class="h5 mb-1">{{ session.topic }}</h3>
+              <span class="badge bg-info text-dark">{{ session.get_status_display }}</span>
+            </div>
+            <div class="text-end">
+              <div class="fw-semibold">{{ session.start_time|localtime|date:"d/m/Y H:i" }}</div>
+              <small class="text-muted">Fin: {{ session.end_time|localtime|date:"H:i" }}</small>
+            </div>
+          </div>
+          <p class="mb-2 small text-muted">{{ session.description|default:"Sin notas adicionales" }}</p>
+          <div class="d-flex flex-wrap gap-3 align-items-center">
+            {% if is_student %}
+            <span><strong>Profesor:</strong> {{ session.teacher.user.get_full_name|default:session.teacher.user.username }}</span>
+            {% elif is_teacher %}
+            <span><strong>Alumno:</strong> {{ session.student.user.get_full_name|default:session.student.user.username }}</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:session_detail' session.pk %}">Ver detalles</a>
+            {% if session.status == 'scheduled' %}
+            <a class="btn btn-primary" href="{% url 'accounts:session_room' session.pk %}">Entrar a la sala</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+      {% if is_student %}
+      Aun no tienes clases en linea programadas. Agenda tu primera clase desde el perfil de un profesor.
+      {% else %}
+      No hay sesiones proximas. Comparte tu disponibilidad para recibir solicitudes de alumnos.
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <h2 class="h5 mb-3">Historial reciente</h2>
+    {% if past_sessions %}
+    <div class="vstack gap-3">
+      {% for session in past_sessions|slice:":6" %}
+      <div class="card border-light">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold">{{ session.topic }}</span>
+            <span class="badge bg-light text-dark border">{{ session.get_status_display }}</span>
+          </div>
+          <small class="text-muted d-block">{{ session.start_time|localtime|date:"d/m/Y H:i" }}</small>
+          {% if is_student %}
+          <small class="text-muted">Profesor: {{ session.teacher.user.get_full_name|default:session.teacher.user.username }}</small>
+          {% elif is_teacher %}
+          <small class="text-muted">Alumno: {{ session.student.user.get_full_name|default:session.student.user.username }}</small>
+          {% endif %}
+          <div class="d-flex justify-content-end mt-3">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:session_detail' session.pk %}">Ver detalles</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-secondary">Aun no tienes historial de sesiones.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}

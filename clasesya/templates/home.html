@@ -13,9 +13,10 @@
           Gracias por confiar en ClasesYa. Tu primera clase con cada profesor es gratis.
           Explora perfiles de profesores para encontrar la materia que necesitas reforzar.
         </p>
-        <div class="mb-3">
-          <a class="btn btn-primary" href="{% url 'accounts:teacher_search' %}">Buscar profesores disponibles</a>
-        </div>
+          <div class="mb-3 d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" href="{% url 'accounts:teacher_search' %}">Buscar profesores disponibles</a>
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:session_list' %}">Ver mis sesiones</a>
+          </div>
         {% if user.student_profile %}
         <dl class="row mb-0">
           <dt class="col-sm-4">Asignatura de interes</dt>
@@ -29,14 +30,18 @@
           Bienvenido al equipo docente de ClasesYa. Asegurate de mantener tu perfil completo
           para atraer a mas estudiantes y recuerda que la primera clase para cada alumno sera gratuita.
         </p>
-        {% if user.teacher_profile %}
-        <dl class="row mb-0">
-          <dt class="col-sm-4">Asignaturas</dt>
-          <dd class="col-sm-8">{{ user.teacher_profile.subjects }}</dd>
-          <dt class="col-sm-4">Tarifa por hora</dt>
-          <dd class="col-sm-8">${{ user.teacher_profile.hourly_rate }}</dd>
-        </dl>
-        {% endif %}
+          {% if user.teacher_profile %}
+          <dl class="row mb-3">
+            <dt class="col-sm-4">Asignaturas</dt>
+            <dd class="col-sm-8">{{ user.teacher_profile.subjects }}</dd>
+            <dt class="col-sm-4">Tarifa por hora</dt>
+            <dd class="col-sm-8">${{ user.teacher_profile.hourly_rate }}</dd>
+          </dl>
+          {% endif %}
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" href="{% url 'accounts:session_list' %}">Ver solicitudes y sesiones</a>
+            <a class="btn btn-outline-secondary" href="{% url 'accounts:profile_update' %}">Actualizar mi perfil</a>
+          </div>
         {% else %}
         <p class="card-text">
           Tu cuenta esta lista. Utiliza la opcion "Editar perfil" para completar tu informacion.
@@ -52,13 +57,15 @@
         <ul class="list-unstyled mb-0">
           {% if user.user_type == "STUDENT" %}
           <li>- Completa y mant?n tu perfil actualizado desde "Editar perfil".</li>
-          <li>- Explora profesores disponibles en tu materia de interes.</li>
-          <li>- Agenda tu primera clase gratis.</li>
+            <li>- Explora profesores disponibles en tu materia de interes.</li>
+            <li>- Agenda clases en linea con el profesor que elijas.</li>
+            <li>- Consulta tus clases programadas desde "Mis sesiones".</li>
           <li>- Deja una resena para ayudar a otros alumnos.</li>
           {% elif user.user_type == "TEACHER" %}
           <li>- Actualiza tu biografia y tarifas en "Editar perfil".</li>
           <li>- Publica materiales previos para tus alumnos.</li>
-          <li>- Revisa las solicitudes de clase nuevas.</li>
+            <li>- Revisa y confirma las sesiones en linea programadas.</li>
+            <li>- Ingresa a tu sala virtual desde "Mis sesiones".</li>
           {% else %}
           <li>- Completa tu informacion desde "Editar perfil".</li>
           {% endif %}
