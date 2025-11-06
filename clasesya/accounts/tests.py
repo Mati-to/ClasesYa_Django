@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import ClassSession, StudentProfile, TeacherProfile
+from .models import ClassSession, StudentProfile, TeacherAvailabilitySlot, TeacherProfile
 
 
 class LogoutFlowTests(TestCase):
@@ -230,22 +230,28 @@ class ClassSessionSchedulingTests(TestCase):
             bio="Profesor con experiencia",
         )
 
-    def _schedule_payload(self, start, end):
+    def _create_slot(self, start):
+        start_aligned = start.replace(minute=0, second=0, microsecond=0)
+        return TeacherAvailabilitySlot.objects.create(
+            teacher=self.teacher_profile,
+            start_time=start_aligned,
+        )
+
+    def _schedule_payload(self, slot):
         return {
             "topic": "Repaso integral",
             "description": "Resolver ejercicios clave",
-            "start_time": start.strftime("%Y-%m-%dT%H:%M"),
-            "end_time": end.strftime("%Y-%m-%dT%H:%M"),
+            "slot": str(slot.pk),
         }
 
     def test_student_can_schedule_session_and_virtual_room_generated(self):
         self.client.login(username="student", password="pass1234")
         start = timezone.now() + timedelta(days=1)
-        end = start + timedelta(hours=1)
+        slot = self._create_slot(start)
 
         response = self.client.post(
             reverse("accounts:session_create", kwargs={"teacher_pk": self.teacher_profile.pk}),
-            self._schedule_payload(start, end),
+            self._schedule_payload(slot),
             follow=True,
         )
 
@@ -253,30 +259,48 @@ class ClassSessionSchedulingTests(TestCase):
         session = ClassSession.objects.get()
         self.assertEqual(session.topic, "Repaso integral")
         self.assertIn("https://meet.jit.si/ClasesYa-", session.virtual_room_url)
+        self.assertEqual(session.slot, slot)
+        self.assertEqual(session.start_time, slot.start_time)
+        self.assertEqual(session.end_time, slot.end_time)
         self.assertContains(response, "Tu clase se programo correctamente")
 
     def test_prevents_overlapping_sessions_for_teacher(self):
         self.client.login(username="student", password="pass1234")
         start = timezone.now() + timedelta(days=1)
-        end = start + timedelta(hours=1)
+        slot = self._create_slot(start)
         student_profile, _ = StudentProfile.objects.get_or_create(user=self.student)
         ClassSession.objects.create(
             teacher=self.teacher_profile,
             student=student_profile,
             topic="Sesion previa",
             description="",
-            start_time=start,
-            end_time=end,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            slot=slot,
         )
 
         response = self.client.post(
             reverse("accounts:session_create", kwargs={"teacher_pk": self.teacher_profile.pk}),
-            self._schedule_payload(start + timedelta(minutes=15), end + timedelta(minutes=15)),
+            self._schedule_payload(slot),
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "El profesor ya tiene una sesion programada en ese horario")
+        self.assertContains(
+            response,
+            "El horario seleccionado ya no está disponible. Selecciona otro horario.",
+        )
         self.assertEqual(ClassSession.objects.count(), 1)
+
+    def test_redirects_when_teacher_has_no_available_slots(self):
+        self.client.login(username="student", password="pass1234")
+
+        response = self.client.get(
+            reverse("accounts:session_create", kwargs={"teacher_pk": self.teacher_profile.pk}),
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("accounts:teacher_detail", args=[self.teacher_profile.pk]))
+        self.assertContains(response, "El profesor no tiene horarios disponibles para nuevas clases")
 
     def test_only_students_can_access_schedule_view(self):
         self.client.login(username="teacher", password="pass1234")
@@ -291,13 +315,14 @@ class ClassSessionSchedulingTests(TestCase):
 
     def test_sessions_list_shows_student_and_teacher_sessions(self):
         student_profile, _ = StudentProfile.objects.get_or_create(user=self.student)
+        start = (timezone.now() + timedelta(days=2)).replace(minute=0, second=0, microsecond=0)
         session = ClassSession.objects.create(
             teacher=self.teacher_profile,
             student=student_profile,
             topic="Trigonometria",
             description="",
-            start_time=timezone.now() + timedelta(days=2),
-            end_time=timezone.now() + timedelta(days=2, hours=1),
+            start_time=start,
+            end_time=start + timedelta(hours=1),
         )
 
         self.client.login(username="student", password="pass1234")
@@ -314,13 +339,14 @@ class ClassSessionSchedulingTests(TestCase):
 
     def test_teacher_can_update_session_status(self):
         student_profile, _ = StudentProfile.objects.get_or_create(user=self.student)
+        start = (timezone.now() + timedelta(days=3)).replace(minute=0, second=0, microsecond=0)
         session = ClassSession.objects.create(
             teacher=self.teacher_profile,
             student=student_profile,
             topic="Calculo diferencial",
             description="",
-            start_time=timezone.now() + timedelta(days=3),
-            end_time=timezone.now() + timedelta(days=3, hours=2),
+            start_time=start,
+            end_time=start + timedelta(hours=1),
         )
 
         self.client.login(username="teacher", password="pass1234")
@@ -336,13 +362,14 @@ class ClassSessionSchedulingTests(TestCase):
 
     def test_virtual_room_access_restricted_to_participants(self):
         student_profile, _ = StudentProfile.objects.get_or_create(user=self.student)
+        start = (timezone.now() + timedelta(days=4)).replace(minute=0, second=0, microsecond=0)
         session = ClassSession.objects.create(
             teacher=self.teacher_profile,
             student=student_profile,
             topic="Acceso restringido",
             description="",
-            start_time=timezone.now() + timedelta(days=4),
-            end_time=timezone.now() + timedelta(days=4, hours=1),
+            start_time=start,
+            end_time=start + timedelta(hours=1),
         )
 
         outsider = self.user_model.objects.create_user(username="outsider", password="pass1234")
@@ -353,13 +380,14 @@ class ClassSessionSchedulingTests(TestCase):
 
     def test_cancelled_session_redirects_from_virtual_room(self):
         student_profile, _ = StudentProfile.objects.get_or_create(user=self.student)
+        start = (timezone.now() + timedelta(days=5)).replace(minute=0, second=0, microsecond=0)
         session = ClassSession.objects.create(
             teacher=self.teacher_profile,
             student=student_profile,
             topic="Sesion cancelada",
             description="",
-            start_time=timezone.now() + timedelta(days=5),
-            end_time=timezone.now() + timedelta(days=5, hours=1),
+            start_time=start,
+            end_time=start + timedelta(hours=1),
             status=ClassSession.Status.CANCELLED,
         )
 

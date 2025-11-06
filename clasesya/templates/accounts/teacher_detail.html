@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load tz %}
 
 {% block title %}Perfil docente | ClasesYa{% endblock title %}
 
@@ -22,6 +23,26 @@
       {% endfor %}
     </div>
     {% endif %}
+      <div class="mb-4">
+        <span class="d-block fw-semibold mb-2">Horarios disponibles</span>
+        {% if available_slots %}
+        <ul class="list-group list-group-flush">
+          {% for slot in available_slots %}
+          {% with start_local=slot.start_time|localtime end_local=slot.end_time|localtime %}
+          <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+            <span>{{ start_local|date:"d/m/Y H:i" }}</span>
+            <span class="text-muted small">{{ end_local|date:"H:i" }}</span>
+          </li>
+          {% endwith %}
+          {% endfor %}
+        </ul>
+        {% if has_more_slots %}
+        <p class="form-text mt-2 mb-0">Hay mas horarios disponibles. Selecciona "Programar clase" para ver todos.</p>
+        {% endif %}
+        {% else %}
+        <p class="text-muted mb-0">Este profesor aun no ha publicado horarios disponibles.</p>
+        {% endif %}
+      </div>
       {% if teacher.bio %}
       <div class="mb-4">
         <h2 class="h5">Sobre el profesor</h2>

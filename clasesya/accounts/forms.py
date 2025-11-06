@@ -3,7 +3,13 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from django.utils import timezone
 
-from .models import ClassSession, StudentProfile, TeacherProfile, User
+from .models import (
+    ClassSession,
+    StudentProfile,
+    TeacherAvailabilitySlot,
+    TeacherProfile,
+    User,
+)
 
 
 class BaseSignUpForm(UserCreationForm):
@@ -235,63 +241,67 @@ class TeacherSearchForm(forms.Form):
 
 
 class ClassSessionScheduleForm(forms.ModelForm):
-    start_time = forms.DateTimeField(
-        label="Inicio de la clase",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
-    )
-    end_time = forms.DateTimeField(
-        label="Fin de la clase",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
+    slot = forms.ModelChoiceField(
+        label="Horario disponible",
+        queryset=TeacherAvailabilitySlot.objects.none(),
+        widget=forms.Select(attrs={"class": "form-select"}),
+        empty_label=None,
+        error_messages={
+            "invalid_choice": "El horario seleccionado ya no está disponible. Selecciona otro horario.",
+        },
     )
 
     def __init__(self, teacher, student, *args, **kwargs):
         self.teacher = teacher
         self.student = student
         super().__init__(*args, **kwargs)
-        now_local = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
-        min_value = now_local.strftime("%Y-%m-%dT%H:%M")
-        self.fields["start_time"].widget.attrs.setdefault("min", min_value)
-        self.fields["end_time"].widget.attrs.setdefault("min", min_value)
+        available_slots = (
+            teacher.availability_slots.filter(is_active=True, start_time__gte=timezone.now())
+            .exclude(class_sessions__status=ClassSession.Status.SCHEDULED)
+            .order_by("start_time")
+            .distinct()
+        )
+        slot_field = self.fields["slot"]
+        slot_field.queryset = available_slots
+        slot_field.label_from_instance = self._format_slot_label
         for name, field in self.fields.items():
-            if name not in {"start_time", "end_time"}:
+            if name != "slot":
                 css_classes = field.widget.attrs.get("class", "")
                 field.widget.attrs["class"] = f"{css_classes} form-control".strip()
 
     class Meta:
         model = ClassSession
-        fields = ("topic", "description", "start_time", "end_time")
+        fields = ("topic", "description", "slot")
         labels = {
             "topic": "Tema",
             "description": "Notas adicionales",
+            "slot": "Horario disponible",
         }
         widgets = {
             "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Objetivo de la clase"}),
             "topic": forms.TextInput(attrs={"placeholder": "Ej: Algebra - Fracciones"}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        start_time = cleaned_data.get("start_time")
-        end_time = cleaned_data.get("end_time")
-        current_timezone = timezone.get_current_timezone()
-
-        if start_time and timezone.is_naive(start_time):
-            start_time = timezone.make_aware(start_time, current_timezone)
-            cleaned_data["start_time"] = start_time
-
-        if end_time and timezone.is_naive(end_time):
-            end_time = timezone.make_aware(end_time, current_timezone)
-            cleaned_data["end_time"] = end_time
-
-        return cleaned_data
-
     def save(self, commit=True):
         session = super().save(commit=False)
+        slot = self.cleaned_data.get("slot")
         session.teacher = self.teacher
         session.student = self.student
+        session.slot = slot
+        if slot is not None:
+            session.start_time = slot.start_time
+            session.end_time = slot.end_time
         if commit:
             session.save()
         return session
+
+    @staticmethod
+    def _format_slot_label(slot: TeacherAvailabilitySlot) -> str:
+        start_local = timezone.localtime(slot.start_time)
+        end_local = timezone.localtime(slot.end_time)
+        start_str = start_local.strftime("%d/%m/%Y %H:%M")
+        end_str = end_local.strftime("%H:%M")
+        return f"{start_str} - {end_str}"
 
 
 class ClassSessionStatusForm(forms.ModelForm):
